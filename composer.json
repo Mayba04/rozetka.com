@@ -7,6 +7,10 @@
     "require": {
         "php": "^8.1",
         "guzzlehttp/guzzle": "^7.2",
+<<<<<<< HEAD
+=======
+        "intervention/image": "^3.0",
+>>>>>>> 38fcce5 (Create Project)
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8"
