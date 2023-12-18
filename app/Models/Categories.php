@@ -10,10 +10,6 @@ class Categories extends Model
     use HasFactory;
 
     protected $fillable = [
-<<<<<<< HEAD
-    "name"
-=======
     "name", "image"
->>>>>>> 38fcce5 (Create Project)
     ];
 }
