@@ -229,6 +229,8 @@ class CategoryController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $inputs = ['name' => $request->name];
+
         if ($request->hasFile("image")) {
             foreach ([50, 150, 300, 600, 1200] as $size) {
                 $oldPath = public_path("upload/" . $size . "_" . $imageName);
