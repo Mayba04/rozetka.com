@@ -52,6 +52,30 @@
             }
         },
         "/api/categories/{id}": {
+            "get": {
+                "tags": [
+                    "Category"
+                ],
+                "operationId": "169f146ae95eb080178e6b1ad6e96cbc",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Get Category by ID."
+                    },
+                    "404": {
+                        "description": "Category not found."
+                    }
+                }
+            },
             "delete": {
                 "tags": [
                     "Category"

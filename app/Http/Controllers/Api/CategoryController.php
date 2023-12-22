@@ -7,6 +7,8 @@ use App\Models\Categories;
 use Illuminate\Http\Request;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
@@ -24,6 +26,40 @@ class CategoryController extends Controller
         $data = Categories::all();
         return response()->json($data)->
         header("Content-Type", "application/json; charset=utf8");
+    }
+
+    /**
+     * @OA\Get(
+     *     tags={"Category"},
+     *     path="/api/categories/{id}",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(
+     *             type="integer"
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response="200",
+     *         description="Get Category by ID."
+     *     ),
+     *     @OA\Response(
+     *         response="404",
+     *         description="Category not found."
+     *     )
+     * )
+     */
+    public function getId($id)
+    {
+        $category = Categories::find($id);
+        if ($category) {
+            return response()->json($category)
+                ->header("Content-Type", "application/json; charset=utf8");
+        } else {
+            return response()->json(['message' => 'Category not found'], 404)
+                ->header("Content-Type", "application/json; charset=utf8");
+        }
     }
 
     /**
@@ -52,22 +88,39 @@ class CategoryController extends Controller
 
     public function create (Request $request)
     {
-        $input = $request->all();
+        $validator = Validator::make($request->all(), [
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('categories')->where(function ($query) use ($request) {
+                    return $query->where('name', $request->name);
+                }),
+            ],
+            'image' => 'required|image|max:10240', // 10MB
+        ]);
+    
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+    
         $image = $request->file("image");
-
+        $imageName = uniqid() . ".webp";
+        $sizes = [50, 150, 300, 600, 1200];
         $manager = new ImageManager(new Driver());
-        $imageName = uniqid().".webp";
-        $sizes = [50,150,300,600,1200];
-
+    
         foreach ($sizes as $size) {
             $imageSave = $manager->read($image);
             $imageSave->scale(width: $size);
-            $path = public_path("upload/".$size."_" .$imageName);
+            $path = public_path("upload/" . $size . "_" . $imageName);
             $imageSave->toWebp()->save($path);
         }
-        $input["image"]=$imageName;
-        $category = Categories::create($input);
-
+    
+        $category = Categories::create([
+            'name' => $request->name,
+            'image' => $imageName,
+        ]);
+    
         return response()->json("end ",201,
             ['Content-Type' => 'application/json;charset=UTF-8', 'Charset' => 'utf-8'],
             JSON_UNESCAPED_UNICODE);
@@ -157,27 +210,47 @@ class CategoryController extends Controller
      * )
      */
     
-    public function edit($id, Request $request) {
+    public function edit($id, Request $request) 
+    {
         $category = Categories::findOrFail($id);
-        $imageName=$category->image;
-        $inputs = $request->all();
-        if($request->hasFile("image")) {
-            $image = $request->file("image");
-            $imageName = uniqid() . ".webp";
-            $sizes = [50, 150, 300, 600, 1200];
-            $manager = new ImageManager(new Driver());
-            foreach ($sizes as $size) {
-                $fileSave = $size . "_" . $imageName;
-                $imageRead = $manager->read($image);
-                $imageRead->scale(width: $size);
-                $path = public_path('upload/' . $fileSave);
-                $imageRead->toWebp()->save($path);
-                $removeImage = public_path('upload/'.$size."_". $category->image);
-                if(file_exists($removeImage))
-                    unlink($removeImage);
-            }
+        $imageName = $category->image;
+
+        $validator = Validator::make($request->all(), [
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('categories')->ignore($category->id),
+            ],
+            'image' => 'sometimes|image|max:10240', 
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
         }
-        $inputs["image"]= $imageName;
+
+        if ($request->hasFile("image")) {
+            foreach ([50, 150, 300, 600, 1200] as $size) {
+                $oldPath = public_path("upload/" . $size . "_" . $imageName);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $image = $request->file("image");
+            $manager = new ImageManager(new Driver());
+            $imageName = uniqid() . ".webp";
+            
+            foreach ([50, 150, 300, 600, 1200] as $size) {
+                $imageSave = $manager->read($image);
+                $imageSave->scale(width: $size);
+                $path = public_path("upload/" . $size . "_" . $imageName);
+                $imageSave->toWebp()->save($path);
+            }
+
+            $inputs['image'] = $imageName;
+        }
+
         $category->update($inputs);
         return response()->json($category,200,
             ['Content-Type' => 'application/json;charset=UTF-8', 'Charset' => 'utf-8'], JSON_UNESCAPED_UNICODE);
